@@ -1,0 +1,90 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+<title>Garmin GPX export</title>
+<link type="text/css" href="/css/ui-lightness/jquery-ui-1.8.16.custom.css" rel="stylesheet" />
+<script type="text/javascript" src="/js/jquery-1.6.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery-ui-1.8.16.custom.min.js"></script>
+<script type="text/javascript" src="http://developer.garmin.com/web/communicator-api/prototype/prototype.js"></script>
+<script type="text/javascript" src="http://developer.garmin.com/web/communicator-api/garmin/device/GarminDeviceDisplay.js"></script>
+<script type="text/javascript">
+jQuery.noConflict();
+
+var apiDomain = '<%= @api_domain %>';
+var apiKey = '<%= @api_key %>';
+
+function garminExport() {
+  var display = new Garmin.DeviceDisplay("garminDisplay", {
+    pathKeyPairsArray: ["http://" + apiDomain,
+			apiKey],
+	autoFindDevices: true,
+	hideIfBrowserNotSupported: true,
+	showStatusElement: true,
+	findDevicesButtonText: "Upload route to Garmin GPS unit",
+	showCancelFindDevicesButton: false,
+	showDeviceSelectOnLoad: false,
+	showDeviceSelectNoDevice: false,
+	autoWriteData: true,
+	showReadDataElement: false,
+
+	getWriteData: function() {
+	  return <%= @gpx_json %>;
+        },
+
+     afterFinishWriteToDevice: function() {
+          alert("Route saved successfully");
+     }
+  });
+}
+
+function garminExportWaypoints() {
+  var display = new Garmin.DeviceDisplay("garminDisplay", {
+    pathKeyPairsArray: ["http://" + apiDomain,
+			apiKey],
+	autoFindDevices: true,
+	hideIfBrowserNotSupported: true,
+	showStatusElement: true,
+	findDevicesButtonText: "Upload waypoints to Garmin GPS unit",
+	showCancelFindDevicesButton: false,
+	showDeviceSelectOnLoad: false,
+	showDeviceSelectNoDevice: false,
+	autoWriteData: true,
+	showReadDataElement: false,
+
+	getWriteData: function() {
+	  return <%= @gpx_wp_json %>;
+        },
+
+     afterFinishWriteToDevice: function() {
+          alert("Route saved successfully");
+     }
+  });
+}
+
+jQuery(function() {
+  jQuery("input:button").button();
+});
+
+</script>
+</head>
+<body>
+<div id="garminDisplay"></div>
+<input id="garminRoute" type="button" value="Export Route" onClick="garminExport()"/>
+<input id="garminWaypoints" type="button" value="Export Waypoints" onClick="garminExportWaypoints()"/>
+
+<p>Not all Garmin devices support routes (<a href="http://developer.garmin.com/web-device/garmin-communicator-plugin/device-support-matrix/" target="_new">see device support matrix</a>). If your device supports routes, choose 'Export Route', if not, select 'Export Waypoints'.</p>
+
+<p>The 'Export Route' option stores the route on your device, but you may still have to import it under 'Tools' - 'My Data' - 'Import Route from File'</p>
+
+<p>The 'Export Waypoints' option creates waypoints named 'OptiMap 001' etc. in the favourites on your device. Be sure to delete all previous OptiMap waypoints before using this option, since you won't know which waypoints are from a previous trip...</p>
+
+<p>You can also download the .GPX files directly and put them in the GPX folder on your device manually:<br>
+<% @download_links.each do |link| %>
+<a href='<%= link[:href] %>'><%= link[:text] %></a><br>
+<% end %>
+</p>
+
+<p>The Garmin support is experimental. Please let me know if your device works or does not work by posting a comment <a href="http://gebweb.net/blogpost/2012/01/25/optimap-version-4-is-here/" target="_new">here</a>.</p>
+
+</body>
+</html>
