@@ -97,11 +97,11 @@ function formatDirections(gdir, mode) {
 	    var latLng = gdir.legs[prevI].end_location;
 	    headerStr = gdir.legs[i].start_location.toString();
 	}
-	dragStr += "<li id='" + i + "' class='ui-state-"
-	  + (i ? "default" : "disabled") + "'>"
+	dragStr += "<li id='" + i + "' class='"
+	  + (i ? "sortable-item" : "unsortable-item") + "'>"
 	  + "<table class='dragTable'><tr><td class='left'><img src='newicons/black"
 	  + number + ".png' /></td><td class='middle'>" + headerStr + "</td><td class='right'>"
-	  + (i ? "<button id='dragClose" + i + "' value='" + i + "'></button>" : "")
+	  + (i ? "<button id='dragClose" + i + "' class='dragCloseBtn' value='" + i + "'>&times;</button>" : "")
 	  + "</td></tr></table></li>"; 
 	if (i == 0) {
 	  dragStr += "</ul><ul id='sortable'>";
@@ -129,7 +129,7 @@ function formatDirections(gdir, mode) {
 	    var latLng = gdir.legs[prevI].end_location;
 	    headerStr = latLng.toString();
 	}
-	dragStr += "<li id='" + 0 + "' class='ui-state-disabled'>"
+	dragStr += "<li id='" + 0 + "' class='unsortable-item'>"
 	  + "<table class='dragTable'><tr><td><img src='newicons/black"
 	  + 1 + ".png' /></td><td>" + headerStr
 	  + "</td></tr></table></li>"; 
@@ -148,7 +148,7 @@ function formatDirections(gdir, mode) {
 	} else {
 	    headerStr = addr[order[gdir.legs.length]];
 	}
-	dragStr += "<li id='" + gdir.legs.length + "' class='ui-state-disabled'>"
+	dragStr += "<li id='" + gdir.legs.length + "' class='unsortable-item'>"
 	  + "<table class='dragTable'><tr><td><img src='newicons/black"
 	  + (gdir.legs.length + 1) + ".png' /></td><td>"
 	  + headerStr + "</td></tr></table></li>"; 
@@ -180,7 +180,7 @@ function createTomTomLink(gdir) {
     var itn = createTomTomItineraryItn(gdir, addr2, label2);
     var retStr = "<form method='GET' action='tomtom.php' target='tomTomIFrame'>\n";
     retStr += "<input type='hidden' name='itn' value='" + itn + "' />\n";
-    retStr += "<input id='tomTomButton' class='calcButton' type='submit' value='Send to TomTom' onClick='jQuery(\"#dialogTomTom\").dialog(\"open\");'/>\n";
+    retStr += "<input id='tomTomButton' class='calcButton' type='submit' value='Send to TomTom' onClick='document.getElementById(\"dialogTomTom\").dispatchEvent(new CustomEvent(\"modal:open\"));'/>\n";
     retStr += "</form>\n";
     return retStr;
 }
@@ -201,7 +201,7 @@ function createGarminLink(gdir) {
     var retStr = "<form method='POST' action='garmin.php' target='garminIFrame'>\n";
     retStr += "<input type='hidden' name='gpx' value='" + gpx + "' />\n";
     retStr += "<input type='hidden' name='gpxWp' value='" + gpxWp + "' />\n";
-    retStr += "<input id='garminButton' class='calcButton' type='submit' value='Send to Garmin' onClick='jQuery(\"#dialogGarmin\").dialog(\"open\");'/>\n";
+    retStr += "<input id='garminButton' class='calcButton' type='submit' value='Send to Garmin' onClick='document.getElementById(\"dialogGarmin\").dispatchEvent(new CustomEvent(\"modal:open\"));'/>\n";
     retStr += "</form>\n";
     return retStr;
 }
@@ -246,7 +246,11 @@ function getWindowWidth() {
 }
 
 function onProgressCallback(tsp) {
-  jQuery('#progressBar').progressbar('value', 100 * tsp.getNumDirectionsComputed() / tsp.getNumDirectionsNeeded());
+  var pct = 100 * tsp.getNumDirectionsComputed() / tsp.getNumDirectionsNeeded();
+  var pbContainer = document.getElementById('progressBar').closest('[data-controller~="progress-bar"]');
+  if (pbContainer) {
+    pbContainer.dispatchEvent(new CustomEvent('progress:setValue', { detail: { value: pct } }));
+  }
 }
 
 function setMarkerAsStart(marker) {
@@ -411,7 +415,7 @@ function startOver() {
 }
 
 function directions(m, walking, bicycling, avoidHighways, avoidTolls) {
-    jQuery('#dialogProgress').dialog('open');
+    document.getElementById('dialogProgress').dispatchEvent(new CustomEvent('modal:open'));
     mode = m;
     tsp.setAvoidHighways(avoidHighways);
     tsp.setAvoidTolls(avoidTolls);
@@ -452,7 +456,7 @@ function removeOldMarkers() {
 }
 
 function onSolveCallback(myTsp) {
-  jQuery('#dialogProgress').dialog('close');
+  document.getElementById('dialogProgress').dispatchEvent(new CustomEvent('modal:close'));
     var dirRes = tsp.getGDirections();
     var dir = dirRes.routes[0];
     // Print shortest roundtrip data:
@@ -475,35 +479,25 @@ function onSolveCallback(myTsp) {
     document.getElementById("tomtom").innerHTML = createTomTomLink(dir);
     document.getElementById("exportGoogle").innerHTML = "<input id='googleButton' value='View in Google Maps' type='button' class='calcButton' onClick='window.open(\"" + createGoogleLink(dir) + "\");' />";
     document.getElementById("reverseRoute").innerHTML = "<input id='reverseButton' value='Reverse' type='button' class='calcButton' onClick='reverseRoute()' />";
-    jQuery('#reverseButton').button();
-    jQuery('#rawButton').button();
-    jQuery('#rawLabelButton').button();
-    jQuery('#csvButton').button();
-    jQuery('#googleButton').button();
-    jQuery('#tomTomButton').button();
-    jQuery('#garminButton').button();
-    jQuery('#rawAddrButton').button();
-    jQuery('#rawOrderButton').button();
+    // Button styling is handled by CSS; no jQuery .button() calls needed.
 
-    jQuery("#sortable").sortable({ stop: function(event, ui) {
-	  var perm = jQuery("#sortable").sortable("toArray");
-	  var numPerm = new Array(perm.length + 2);
-	  numPerm[0] = 0;
-	  for (var i = 0; i < perm.length; i++) {
-	    numPerm[i + 1] = parseInt(perm[i]);
-	  }
-	  numPerm[numPerm.length - 1] = numPerm.length - 1;
-	  tsp.reorderSolution(numPerm, onSolveCallback);
-	} });
-    jQuery("#sortable").disableSelection();
+    // Set up sortable via Stimulus controller
+    var sortableEl = document.getElementById("sortable");
+    if (sortableEl) {
+      // Add data-controller attribute so Stimulus connects SortableController
+      sortableEl.setAttribute("data-controller", "sortable");
+      // Listen for the reordered event dispatched by sortable_controller.js
+      sortableEl.addEventListener("sortable:reordered", function(e) {
+        tsp.reorderSolution(e.detail.order, onSolveCallback);
+      });
+    }
     for (var i = 1; i < dir.legs.length; ++i) {
-      var finalI = i;
-      jQuery("#dragClose" + i).button({
-	icons: { primary: "ui-icon-close" },
-	    text: false
-	    }).click(function() {
-		tsp.removeStop(parseInt(this.value), null);
-	      });
+      var closeBtn = document.getElementById("dragClose" + i);
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function() {
+          tsp.removeStop(parseInt(this.value), null);
+        });
+      }
     }
     removeOldMarkers();
 
