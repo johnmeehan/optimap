@@ -22,13 +22,13 @@ $lat;
 $lng;
 if (isset($_GET['center'])) {
   $loc = $_GET['center'];
-  if (eregi("\(\s*\-?([0-9]+|[0-9]*\.[0-9]+),\s*\-?([0-9]+|[0-9]*\.[0-9]+)\)",
+  if (eregi("\(\s*\-?([0-9]+|[0-9]*\.[0-9]+),\s*\-?([0-9]+|[0-9]*\.[0-9]+)",
 	    $loc)) {
     $latLngArr = split("[\s,\)\(]+",$loc);
     $lat = $latLngArr[1];
     $lng = $latLngArr[2];
   }
-} 
+}
 
 $zoom = 8;
 if (isset($_GET['zoom'])) {
@@ -83,18 +83,36 @@ if (isset($_COOKIE['poll2Hidden'])) {
 <title>Multiple Destination Route Planner for Google Maps</title>
 <link rel="stylesheet" href="css/style.css" type="text/css" media="screen">
 <link rel="stylesheet" href="css/print.css" type="text/css" media="print">
-<link type="text/css" href="css/ui-lightness/jquery-ui-1.8.16.custom.css" rel="stylesheet" />	
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
-<script type="text/javascript" src="js/jquery.cookie.js"></script>
 <script type="text/javascript" src="http://www.google.com/jsapi"></script>
 <?php
   echo "<script type=\"text/javascript\" src=\"js/BpTspSolver.js?" . filemtime("js/BpTspSolver.js") . "\"></script>\n";
   echo "<script type=\"text/javascript\" src=\"js/directions-export.js?" . filemtime("js/directions-export.js") . "\"></script>\n";
   echo "<script type=\"text/javascript\" src=\"js/tsp.js?" . filemtime("js/tsp.js") . "\"></script>\n";
 ?>
+<script type="importmap">
+{
+  "imports": {
+    "@hotwired/stimulus": "https://unpkg.com/@hotwired/stimulus@3.2.2/dist/stimulus.js",
+    "sortablejs": "https://unpkg.com/sortablejs@1.15.0/modular/sortable.esm.js"
+  }
+}
+</script>
+<script type="module">
+  import { Application } from "@hotwired/stimulus"
+  import AccordionController from "./js/controllers/accordion_controller.js"
+  import ModalController from "./js/controllers/modal_controller.js"
+  import ProgressBarController from "./js/controllers/progress_bar_controller.js"
+  import SortableController from "./js/controllers/sortable_controller.js"
+  import MapController from "./js/controllers/map_controller.js"
+
+  window.Stimulus = Application.start()
+  Stimulus.register("accordion", AccordionController)
+  Stimulus.register("modal", ModalController)
+  Stimulus.register("progress-bar", ProgressBarController)
+  Stimulus.register("sortable", SortableController)
+  Stimulus.register("map", MapController)
+</script>
 <script type="text/javascript">
-  jQuery.noConflict();
   function onBodyLoad() {
     google.load("maps", "3", {callback: init, other_params:"sensor=false"});
   }
@@ -139,37 +157,12 @@ function toggle(divId) {
 }
 
 function setPollHidden() {
-  jQuery('.poll').hide();
-  jQuery.cookie('poll2Hidden', 'true', { path: '/', expires: 365 });
+  var polls = document.querySelectorAll('.poll');
+  for (var i = 0; i < polls.length; i++) {
+    polls[i].style.display = 'none';
+  }
+  document.cookie = 'poll2Hidden=true; path=/; max-age=' + (365 * 24 * 60 * 60);
 }
-
-jQuery(function() {
-  jQuery( "#accordion" ).accordion({
-    collapsible: true,
-	autoHeight: false,
-	clearStyle: true
-  });
-  jQuery("input:button").button();
-  jQuery("#dialogProgress" ).dialog({
-    height: 140,
-	modal: true,
-	autoOpen: false
-  });
-  jQuery("#progressBar").progressbar({ value: 0 });
-  jQuery("#dialogTomTom" ).dialog({
-    height: 480,
-	width: 640,
-	modal: true,
-	autoOpen: false
-  });
-  jQuery("#dialogGarmin" ).dialog({
-    height: 480,
-	width: 640,
-	modal: true,
-	autoOpen: false
-  });
-  jQuery('.myMap').height(jQuery(window).height() - 100);
-});
 
 (function() {
   var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
@@ -208,7 +201,7 @@ jQuery(function() {
 <?php
 if (!$hidePoll1) {
   echo "<div class='poll'>
-  <a href='https://docs.google.com/forms/d/1Eb248Y0nGUFYDUbmeHo17WMpaAam_WlAYxzsPxTd2ds/viewform' target='_new'>I'd like to ask you a few questions about Optimap</a> -- Geir Engdahl 
+  <a href='https://docs.google.com/forms/d/1Eb248Y0nGUFYDUbmeHo17WMpaAam_WlAYxzsPxTd2ds/viewform' target='_new'>I'd like to ask you a few questions about Optimap</a> -- Geir Engdahl
   (<a href='#' onClick='setPollHidden();'>dismiss</a>)</div>";
 }
 if (!$hidePoll2) {
@@ -219,11 +212,13 @@ if (!$hidePoll2) {
 <tr>
   <td class='left' style='vertical-align: top'>
   <div id="leftPanel">
-  <div id="accordion" style='width: 300pt'>
-  <h3><a href="#" class='accHeader'>Destinations</a></h3>
-  <div>
+  <div id="accordion" data-controller="accordion" style='width: 300pt'>
+  <h3>
+    <button class='accHeader' data-action="click->accordion#toggle" aria-expanded="true">Destinations</button>
+  </h3>
+  <div data-accordion-target="panel">
     <form name="address" onSubmit="clickedAddAddress(); return false;">
-    Add Location by Address: 
+    Add Location by Address:
     <table><tr><td><input name="addressStr" type="text"></td>
     <td><input type="button" value="Add!" onClick="clickedAddAddress()"></tr>
     </table>
@@ -232,8 +227,10 @@ if (!$hidePoll2) {
     <div id="bulkLoader"></div>
   </div>
 
-  <h3><a href="#" class='accHeader'>Route Options</a></h3>
-  <div>
+  <h3>
+    <button class='accHeader' data-action="click->accordion#toggle" aria-expanded="false">Route Options</button>
+  </h3>
+  <div data-accordion-target="panel" hidden>
     <form name="travelOpts">
     <input id="walking" type="checkbox"/> Walking<br>
     <input id="bicycling" type="checkbox"/> Bicycling<br>
@@ -242,8 +239,10 @@ if (!$hidePoll2) {
     </form>
   </div>
 
-  <h3><a href="#" class='accHeader'>Export</a></h3>
-  <div>
+  <h3>
+    <button class='accHeader' data-action="click->accordion#toggle" aria-expanded="false">Export</button>
+  </h3>
+  <div data-accordion-target="panel" hidden>
     <div id="exportGoogle"></div>
     <div id="exportDataButton"></div>
     <div id="exportData"></div>
@@ -259,17 +258,21 @@ if (!$hidePoll2) {
     <div id="durationsData"></div>
   </div>
 
-  <h3><a href="#" class='accHeader'>Edit Route</a></h3>
-  <div>
+  <h3>
+    <button class='accHeader' data-action="click->accordion#toggle" aria-expanded="false">Edit Route</button>
+  </h3>
+  <div data-accordion-target="panel" hidden>
     <div id="routeDrag"></div>
     <div id="reverseRoute"></div>
   </div>
 
-  <h3><a href="#" class='accHeader'>Help</a></h3>
-  <div>
+  <h3>
+    <button class='accHeader' data-action="click->accordion#toggle" aria-expanded="false">Help</button>
+  </h3>
+  <div data-accordion-target="panel" hidden>
   <p>To add locations, simply left-click the map or enter an address
   either in the single address field, or in the bulk loader. </p>
-  <p>The first location you add is considered to be the start 
+  <p>The first location you add is considered to be the start
   of your journey. If you click 'Calculate Fastest Roundtrip', it will
   also be the end of your trip. If you click 'Calculate Fastest A-Z Trip',
   the last location (the one with the highest number), will be the final
@@ -283,8 +286,10 @@ if (!$hidePoll2) {
   section and drag or delete locations.</p>
   </div>
 
-  <h3><a href="#" class='accHeader'>About</a></h3>
-  <div>
+  <h3>
+    <button class='accHeader' data-action="click->accordion#toggle" aria-expanded="false">About</button>
+  </h3>
+  <div data-accordion-target="panel" hidden>
   <p><span class="red">Version 4</span>&nbsp;<a href="http://gebweb.net/blogpost/2012/01/25/optimap-version-4-is-here/">Read about the new
   version, and post comments, bugs and suggestions</a>.
   <p>How it works: <a href="http://gebweb.net/blogpost/2007/07/05/behind-the-scenes-of-optimap/">Behind the Scenes of OptiMap</a></p>
@@ -302,7 +307,7 @@ if (!$hidePoll2) {
    <a href="http://gebweb.net/optimap/index.php?center=(60,10)&amp;zoom=6">http://gebweb.net/optimap/index.php?center=(60,10)&amp;zoom=6</a>.</p>
   <p>Up to 100 locations are accepted.</p>
   </div>
-  
+
   </div>
 
   <input id="button1" class="calcButton" type="button" value="Calculate Fastest Roundtrip" onClick="directions(0, document.forms['travelOpts'].walking.checked, document.forms['travelOpts'].bicycling.checked, document.forms['travelOpts'].avoidHighways.checked, document.forms['travelOpts'].avoidTolls.checked)">
@@ -337,7 +342,7 @@ if (!$hidePoll2) {
 
   </td>
   <td class='right' style='vertical-align: top'>
-  <div id="map" class="myMap"></div>
+  <div id="map" class="myMap" data-controller="map"></div>
   <div id="path" class="pathdata"></div>
   <div id="my_textual_div"></div>
   </td>
@@ -356,16 +361,53 @@ if (!$hidePoll2) {
 <div id="exportOrderData_hidden" style="visibility: hidden;"></div>
 <div id="durationsData_hidden" style="visibility: hidden;"></div>
 
-<div id="dialogProgress" title="Calculating route...">
-<div id="progressBar"></div>
+<!-- Progress modal (replaces jQuery UI dialog) -->
+<div id="dialogProgress" data-controller="modal" class="modal">
+  <div class="modal-backdrop" data-action="click->modal#backdropClick">
+    <div class="modal-dialog" role="dialog" aria-labelledby="dialogProgressTitle">
+      <div class="modal-header">
+        <span id="dialogProgressTitle">Calculating route...</span>
+        <button data-action="click->modal#close" class="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div data-controller="progress-bar">
+          <progress id="progressBar" value="0" max="100"
+                    data-progress-bar-target="bar"
+                    aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></progress>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div id="dialogTomTom" title="Export to TomTom">
-<iframe name='tomTomIFrame' style='width: 580px; height: 400px'></iframe> 
+<!-- TomTom export modal (replaces jQuery UI dialog) -->
+<div id="dialogTomTom" data-controller="modal" class="modal">
+  <div class="modal-backdrop" data-action="click->modal#backdropClick">
+    <div class="modal-dialog modal-dialog-large" role="dialog" aria-labelledby="dialogTomTomTitle">
+      <div class="modal-header">
+        <span id="dialogTomTomTitle">Export to TomTom</span>
+        <button data-action="click->modal#close" class="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <iframe name='tomTomIFrame' style='width: 580px; height: 400px'></iframe>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div id="dialogGarmin" title="Export to Garmin">
-<iframe name='garminIFrame' style='width: 580px; height: 400px'></iframe>
+<!-- Garmin export modal (replaces jQuery UI dialog) -->
+<div id="dialogGarmin" data-controller="modal" class="modal">
+  <div class="modal-backdrop" data-action="click->modal#backdropClick">
+    <div class="modal-dialog modal-dialog-large" role="dialog" aria-labelledby="dialogGarminTitle">
+      <div class="modal-header">
+        <span id="dialogGarminTitle">Export to Garmin</span>
+        <button data-action="click->modal#close" class="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <iframe name='garminIFrame' style='width: 580px; height: 400px'></iframe>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script type="text/javascript">
