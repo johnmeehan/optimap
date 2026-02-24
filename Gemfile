@@ -4,6 +4,7 @@ gem 'sinatra', '~> 3.0'
 gem 'json',    '~> 2.6'
 gem 'ostruct'
 gem 'logger'
+gem 'puma'
 
 group :test do
   gem 'rspec',     '~> 3.12'
